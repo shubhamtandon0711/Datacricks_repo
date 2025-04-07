@@ -114,8 +114,8 @@ Werkstudent at QIAGEN
 
 ## 📬 Get in Touch
 
-📧 Email: your.email@example.com  
-🔗 LinkedIn: [Your LinkedIn Profile](https://www.linkedin.com)
+📧 Email: shubhamtandon777@gmail.com
+
 
 -
 
