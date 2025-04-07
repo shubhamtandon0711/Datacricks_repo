@@ -1,1 +1,82 @@
-avgjanlm
+# supplier_data_analysis.py
+
+from pyspark.sql.functions import regexp_replace  
+from pyspark.sql.types import IntegerType, StructType, StructField, StringType 
+from pyspark.sql.functions import trim
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import trim, col, regexp_replace, to_date
+from pyspark.sql.types import IntegerType
+
+
+# ------------------------------------------------------
+# Load the assumptions for calculations
+# ------------------------------------------------------
+df_Calculationsassumption = spark.read.option("delimiter", ",")\
+                .option("header", "true")\
+                .option("inferSchema", "true")\
+                .csv("dbfs:/FileStore/Asuumption_list_csv.csv")
+display(df_Calculationsassumption)
+# Reads the logic behind the column names
+
+
+# ------------------------------------------------------
+# Load month names (used for widgets or reference)
+# ------------------------------------------------------
+df_month_names = spark.read.option("delimiter", ",")\
+                .option("header", "true")\
+                .option("inferSchema", "true")\
+                .csv("/FileStore/Month_names.csv")
+display(df_month_names)
+# Reads month names, to be copied and pasted on the top, in widgets.
+
+
+# ------------------------------------------------------
+# Load vendor identification info
+# ------------------------------------------------------
+df_vendor_identification = spark.read.option("delimiter", ",")\
+                .option("header", "true")\
+                .option("inferSchema", "true")\
+                .csv("/FileStore/vendor_code_and_names.csv")
+display(df_vendor_identification)
+# Reads vendor identification: vendor name and number
+
+
+# ------------------------------------------------------
+# Define the schema for main data
+# ------------------------------------------------------
+from pyspark.sql.types import StructType, StructField, DateType, StringType, IntegerType, DoubleType
+
+schema = StructType([
+    StructField("Reporting date", DateType(), True),
+    StructField("Vendor code", StringType(), True),
+    StructField("Vendor name", StringType(), True),
+    StructField("QIAGEN material number", StringType(), True),
+    StructField("QIAGEN Product name", StringType(), True),
+    StructField("QC released stock", IntegerType(), True),
+    StructField("Agreed target inventory level", IntegerType(), True),
+    StructField("Produced Stock waiting for QC", IntegerType(), True),
+    StructField("ATP stock", IntegerType(), True),
+    StructField("Orders on hand", IntegerType(), True),
+    StructField("Finished Production run Date", DateType(), True),
+    StructField("Expected volume", IntegerType(), True),
+    StructField("Internal stock at Hilden", IntegerType(), True),
+    StructField("Recommended Stock level at Supplier", IntegerType(), True),
+    StructField("average_consumption_per_day", DoubleType(), True),
+    StructField("stock_coverage_in_days", DoubleType(), True),
+    StructField("stock_coverage_in_weeks", DoubleType(), True)
+])
+# Structure of the notebook or types of the columns
+
+
+# ------------------------------------------------------
+# Load supplier data from August to December
+# ------------------------------------------------------
+absolute_path = "dbfs:/FileStore/Aug_to_Dec_table1.csv"
+df_data_from_Aug_dec = spark.read.option("delimiter", ",")\
+                .option("header", "true")\
+                .option("inferSchema", "true")\
+                .csv(absolute_path)
+df_data_from_Aug_dec = spark.read.csv(absolute_path, header=True, schema=schema)
+display(df_data_from_Aug_dec)
+# Reads data from an Excel file containing supplier data from August 2024 to December 2024
