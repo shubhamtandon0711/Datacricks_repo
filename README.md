@@ -1,44 +1,122 @@
-# 📊 New Supplier Data Analysis - WI Project
+# 📦 Supplier Data Analysis & Visualization in Databricks
 
-Welcome to the official repository for the **New Supplier Data Analysis** project, developed as part of a quality improvement initiative in supplier management and process monitoring! 🚀
-
----
-
-## 🧠 Project Objective
-
-To **analyze new supplier data** efficiently and automate the extraction of quality metrics, failure rates, and performance insights using Python & Pandas. The goal is to **visualize trends**, **highlight root causes**, and provide **actionable insights** that help improve supplier reliability and ensure data-driven decision-making. 📈
+Welcome to the **Supplier Data Analysis** repository! This project helps automate the process of collecting, cleaning, analyzing, and visualizing stock-related data from suppliers — all within the **Databricks** ecosystem.
 
 ---
 
-## 🔍 What This Project Does
+## 📁 Project Overview
 
-- ✅ Reads and cleans supplier data
-- 📊 Performs Pareto analysis of supplier issues
-- 📌 Identifies recurring defects (Root Cause Analysis)
-- 🎯 Detects suppliers with high rejection or failure rates
-- 📍 Highlights process and delivery-related issues
-- 🧩 Supports APQP (Advanced Product Quality Planning) tasks
+This project aims to streamline:
+- 📨 Downloading data from suppliers (via SharePoint)
+- 🧹 Preprocessing using Excel macros
+- 🚀 Uploading cleaned data to Databricks
+- 📊 Analyzing stock coverage and visualizing trends
+- 📦 Making stock decisions based on QC/Recommended levels
 
 ---
 
-## 💡 Use Case Examples
+## 🧩 Folder Structure
 
-- 🔎 **Supplier A** has 12 NCRs (Non-Conformance Reports); 9 due to "Blow holes" – possibly a **casting process issue**.
-- 🚨 **Supplier B** shows repeated NCRs for "Deep scratches" and "Peeling" – indicating **poor surface treatment** or handling.
-- 🔧 **Machining defects**, **material mixing**, or **measurement deviations** are flagged with trends and dates.
+```bash
+.
+├── README.md
+├── scripts/                  # PySpark and analysis scripts
+├── macros/                   # Excel macro files
+├── data/                     # Cleaned data (CSV)
+├── outputs/                  # Visualizations or processed output
+```
+
+---
+
+## 🔁 Workflow
+
+### 1️⃣ Get Supplier Data
+
+- Download the **March Weidmann** Excel from:
+  `SharePoint > Supplier Coordination 06`
+
+- Open the Excel and:
+  - Delete old data and other sheets.
+  - Paste the new data provided by supplier.
+  - Run the macro `macro_weidmann_1`.
+
+- Rename the second sheet to `Sheet1`.
+
+---
+
+### 2️⃣ Prepare for Databricks
+
+- Open another Excel file: `Weidmann Data for Databricks`.
+- Run the macro (button click).
+- Data gets cleaned and reshaped.
+- Copy the data and save it as a **new file**:
+  `April_2025.xlsx` (Save locally & on SharePoint under supplier data folder)
+
+---
+
+### 3️⃣ Upload to Databricks
+
+You can add data to Databricks in different ways:
+- 📤 Upload via **Data > Add Data** (GUI)
+- 📂 Use DBFS: `dbfs:/FileStore/filename.csv`
+- 🧼 Programmatically with `dbutils.fs.cp` or API
+
+---
+
+### 4️⃣ Load & Process in Databricks
+
+```python
+file_path = "dbfs:/FileStore/april_trial_data.csv"
+df = spark.read.csv(file_path, header=True, inferSchema=True)
+```
+
+- Clean columns:
+```python
+from pyspark.sql.functions import col, round
+
+df = df.withColumn("average_consumption_per_day", 
+                   round(col("Recommended Stock level at Supplier") / 66, 2))
+
+df = df.withColumn("stock_coverage_in_weeks_for_supplier", 
+                   round(col("QC released stock") / col("average_consumption_per_day") / 5, 2))
+```
+
+---
+
+### 5️⃣ Analyze & Visualize
+
+- Filter for top 20 parts with lowest average stock over 6 months
+- Plot using matplotlib and seaborn:
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+```
 
 ---
 
 ## 🛠️ Technologies Used
 
-- 🐍 Python 3
-- 📚 Pandas, NumPy
-- 📉 Matplotlib & Seaborn (for visualization)
-- 🗃️ Excel (as input/output format)
-- 💼 Real-world industrial supplier data
+- 💾 Microsoft Excel (Macros for preprocessing, Power query to accumulate the data)
+- 🧠 Databricks (Apache Spark engine)
+- 🐍 PySpark (data manipulation)
+- 📈 Matplotlib & Seaborn (visualization)
 
 ---
 
-## 📂 Repository Structure
+## 🙋‍♂️ Author
 
-# Datacricks_repo
+**Shubham Tandon**  
+Werkstudent at QIAGEN
+
+---
+
+## 📬 Get in Touch
+
+📧 Email: your.email@example.com  
+🔗 LinkedIn: [Your LinkedIn Profile](https://www.linkedin.com)
+
+-
+
+
