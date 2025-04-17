@@ -10,156 +10,141 @@
 
 ```
 Supplier Data Analysis Workflow
-This repository contains all the resources and instructions required to streamline the analysis of supplier data using Databricks. It includes step-by-step guidance, macros, and scripts to ensure the data processing is efficient and standardized.
+📊 Streamline the processing and analysis of supplier data using Databricks!
 
-Purpose
-The purpose of this workflow is to:
+This repository contains step-by-step guidance, tools, and scripts to make your data processing journey efficient and standardized.
 
-Consolidate supplier data received in different formats.
+🌟 Purpose
+This workflow helps:
+✅ Consolidate supplier data from various formats.
+✅ Clean and standardize the data for seamless analysis.
+✅ Leverage Databricks for advanced analytics and actionable insights.
+✅ Share results effectively with the Supplier Engineering Team.
 
-Clean and standardize the data for analysis.
+🚀 Getting Started
+🔑 Prerequisites
+Make sure you have:
 
-Utilize Databricks for advanced analytics and insights.
+📧 Email Access
 
-Share actionable results with the Supplier Engineering Team.
+Access to the public inbox: global.supplier@qiagen.com.
 
-Getting Started
-Prerequisites
-Before starting, ensure you have the following in place:
-
-Email Access:
-
-Access to the public inbox global.supplier@qiagen.com to receive supplier data in Excel format.
-
-If access is unavailable, contact:
+Contact for access:
 
 Tom Dilger: Tom.Dilger@qiagen.com
 
 John Schmitt: John.Schmitt@qiagen.com
 
-Folder Access:
+📂 Folder Access
 
-Local and SharePoint folders for saving supplier files.
+Permissions for local and SharePoint folders.
 
-Contact Tom Dilger or John Schmitt for SharePoint folder permissions.
+Contact: Tom or John for SharePoint access.
 
-Excel Tools:
+📊 Excel Tools
 
-Basic knowledge of Power Query for data consolidation.
+Familiarity with Power Query.
 
-Access to macro-enabled Excel files:
+Access to macro files:
 
-Data Cleaning File for Supplier
+Data Cleaning File for Supplier.
 
-Weidmann Data Cleaning File 01.04.xlsm
+Weidmann Data Cleaning File 01.04.xlsm.
 
-Databricks Access:
+💻 Databricks Access
 
-Permissions to upload and download data from Databricks File System (DBFS).
+Permissions for uploading and downloading files from DBFS.
 
 Ensure a valid Databricks license.
 
-Process Overview
+📋 Workflow Overview
 Step 1: Collect Supplier Data
-Suppliers send data via email, typically at the start of the month.
-
-Save all files to a designated local folder (e.g., April_2025_raw) and on SharePoint for backup.
-
-For suppliers like Weidmann (who report at month-end), include their data in the next month's batch.
+📥 Suppliers send data at the start of the month.
+✅ Save files to a local folder (e.g., April_2025_raw) and SharePoint for backup.
+🔁 For suppliers like Weidmann (reporting at month-end), process their data in the next batch.
 
 Step 2: Consolidate Data with Power Query
-Combine all supplier data into a single Excel sheet:
+💡 Merge all supplier files into one Excel sheet:
 
 Open a new Excel file.
 
-Navigate to Data > Get Data > From File > From Folder.
+Go to Data > Get Data > From File > From Folder.
 
-Select the folder with the supplier files.
+Select the folder with supplier files.
 
 Use Combine and Transform to merge the files.
 
-Remove unnecessary or extra columns introduced by suppliers.
-
-Ensure the data format is consistent before proceeding.
+Remove unnecessary columns added by suppliers.
 
 Step 3: Clean Data Using Macros
-Open the macro file Data Cleaning File for Supplier.
+🛠 Use Data Cleaning File for Supplier:
 
-Copy the consolidated data and paste it into the template.
+Copy consolidated data into the macro file.
 
-Run the macro (allsupplier_cleaned_data) to clean and standardize the data.
+Run the macro allsupplier_cleaned_data.
 
-Deletes unnecessary columns and rows.
+✨ What the Macro Does:
 
-Formats dates in YYYY-MM-DD format.
+Deletes unnecessary columns/rows.
 
-Fills blank cells with default values (e.g., 0).
+Formats dates in YYYY-MM-DD.
 
-Adds new headers and adjusts column widths for readability.
+Fills blank cells with 0.
+
+Adds headers and adjusts column widths.
 
 Step 4: Add Additional Columns
-Populate the following manually:
+📊 Manually add:
 
-Internal Stock Level: Extracted from SAP and added via VLOOKUP.
+Internal Stock Level: Extracted from SAP using VLOOKUP.
 
-Recommended Stock Level: Derived from the monthly forecast using XLOOKUP.
+Recommended Stock Level: Derived using XLOOKUP from forecasts.
 
 Step 5: Save Cleaned Data as CSV
-Save the cleaned and updated file in CSV format:
-
-File name example: SupplierData_Cleaned_April_2025.csv.
-
-Store the file locally and on SharePoint for team accessibility.
+💾 Save the file in CSV format (e.g., SupplierData_Cleaned_April_2025.csv) and upload it to SharePoint for team access.
 
 Step 6: Upload Data to Databricks
-Start the Databricks notebook and ensure it’s running.
+🚀 Process data with Databricks:
 
-Upload the cleaned CSV file to Databricks via DBFS Browser.
+Start the Databricks notebook.
 
-Update the widget with the new month’s name and run the analysis.
+Upload the cleaned CSV via DBFS Browser.
 
-Download the processed results and share them with the team on SharePoint.
+Update the widget with the correct month’s name.
 
-Handling Special Cases
-Processing Weidmann Data
-Download the raw data and save it in the designated folder.
+Run the analysis and download the results.
 
-Use Weidmann Data Cleaning File 01.04.xlsm to format it correctly:
+📌 Special Cases: Handling Weidmann Data
+📂 Process raw Weidmann data using:
+
+Weidmann Data Cleaning File 01.04.xlsm.
 
 Run the macro Macro_1_WDM_NoColumnDeletion.
 
-Ensure columns like Reporting Date and Target Inventory Level are accurate.
+Ensure correct values in columns like Reporting Date.
 
 Save the cleaned file alongside other suppliers’ data.
 
-Scripts and Tools
+🛠 Tools and Scripts
 Macro Files
 Weidmann Data Cleaning Macro:
-
-Prepares Weidmann data for compatibility with other supplier data.
+Standardizes Weidmann data.
 
 All Supplier Cleaned Data Macro:
-
-Cleans and standardizes data from all other suppliers.
+Cleans and formats all supplier data.
 
 Key Features
-Auto-formatting of dates and headers.
+✅ Auto-formatting of dates and headers.
+✅ Replacing blank cells with default values.
+✅ Adding additional columns for deeper analysis.
 
-Filling empty cells and handling invalid values.
+📝 Best Practices
+✔ Double-check data after cleaning.
+✔ Maintain consistent file naming conventions.
+✔ Always back up files locally and on SharePoint.
 
-Adding additional columns for analysis.
-
-Best Practices
-Always double-check the data after cleaning and before analysis.
-
-Maintain backups of raw and processed files (both locally and on SharePoint).
-
-Use consistent file naming conventions for easier tracking.
-
-Contact Information
-For assistance, reach out to:
-
-Databricks Issues:
+📇 Contact Information
+💻 Databricks Issues:
 
 Clemens Mahlmeister: Clemens.Mahlmeister@qiagen.com
 
@@ -167,11 +152,11 @@ Emil Duong: Emil.Duong@qiagen.com
 
 Adam Sulik: Adam.Sulik@contractor.qiagen.com
 
-Supplier Data Queries:
+📧 Supplier Data Queries:
 
 John Schmitt: John.Schmitt@qiagen.com
 
-Project Management:
+📂 Project Management:
 
 Tom Dilger: Tom.Dilger@qiagen.com
 
