@@ -78,4 +78,515 @@ df_filtered = df_data_from_Aug_dec.filter(col("Reporting date").contains(selecte
 display(df_filtered)
 
 
-  
+
+
+
+
+
+
+
+from pyspark.sql.functions import col, regexp_replace, round
+
+# Define a widget to accept the file path
+dbutils.widgets.text("file_path", "dbfs:/FileStore/april_trial_data.csv")
+
+# Get the file path from the widget
+file_path = dbutils.widgets.get("file_path")
+
+# Function to load the data from the specified file path
+def load_data(file_path):
+    """
+    Function to load the data from the specified file path using the defined schema.
+    Args:
+        file_path (str): Path to the input CSV file in DBFS.
+    Returns:
+        DataFrame: Spark DataFrame containing the loaded data.
+    """
+    try:
+        # Load the CSV file using the provided file_path and schema
+        df = spark.read.csv(file_path, header=True, schema=schema)
+        print(f"Data loaded successfully from {file_path}")
+        return df
+    except Exception as e:
+        print(f"Error: Could not load file from {file_path}. Ensure the file path is correct.")
+        raise e
+
+# Call the function with the file path from the widget
+df = load_data(file_path)
+
+# Filter out rows based on the condition
+df = df.filter(df['QIAGEN material number'] != 1054807)
+
+# Clean the "QIAGEN Product name" column by replacing special characters with a space
+df = df.withColumn(
+    "QIAGEN Product name",
+    regexp_replace(col("QIAGEN Product name"), "[^a-zA-Z0-9\s]", " ")  # Replace non-alphanumeric characters with a space
+)
+
+# Add logic to calculate values for the existing "average_consumption_per_day" column
+df = df.withColumn(
+    "average_consumption_per_day",
+    round(col("Recommended Stock level at Supplier") / 66, 2)  # Calculate the average consumption per day
+)
+
+# Add the "stock_coverage_in_weeks_for_supplier" column
+df = df.withColumn(
+    "stock_coverage_in_weeks_for_supplier",
+    round(col("QC released stock") / col("average_consumption_per_day") / 5, 2)  # Divide by 5 for weeks, rounded to 2 decimals
+)
+
+# Function to clean column names by replacing spaces with underscores
+def clean_column_names(df):
+    """
+    Cleans column names by replacing spaces with underscores.
+    """
+    new_columns = [
+        c.replace(" ", "_") for c in df.columns  # Replace spaces with underscores
+    ]
+    return df.toDF(*new_columns)
+
+# Apply the clean_column_names function to the original df
+df = clean_column_names(df)
+
+# Display the cleaned DataFrame with updated values
+display(df)
+
+
+
+
+
+from pyspark.sql.functions import col, round
+
+# Create a new column 'percent_stock' with rounded values
+df_percent_stock = df.withColumn(
+    "percent_stock",
+    round((col("QC_released_stock") / col("Recommended_Stock_level_at_Supplier")) * 100)
+)
+
+# Display the updated DataFrame
+display(df_percent_stock)
+
+
+
+
+from pyspark.sql import functions as F
+
+# Assuming column names are appropriate and adjusted for spaces in Databricks
+
+# Create 'average consumption per day' by dividing the 'Recommended Stock level at Supplier' by 66
+df = df.withColumn(
+    "average_consumption_per_day", F.col("Recommended_Stock_level_at_Supplier") / 66
+)
+
+# Create 'stock coverage in days' based on the formula (Internal stock at Hilden + QC released stock) / average consumption per day
+df = df.withColumn(
+    "stock_coverage_in_days", 
+    F.round((F.col("Internal_stock_at_Hilden") + F.col("QC_released_stock")) / F.col("average_consumption_per_day"))
+)
+
+# Create 'stock coverage in weeks' by dividing 'stock coverage in days' by 5
+df = df.withColumn(
+    "stock_coverage_in_weeks", F.col("stock_coverage_in_days") / 5
+)
+
+# Filter out rows where 'stock_coverage_in_days' is null
+df_filtered = df.na.drop(subset=["stock_coverage_in_days"])
+
+# Display the updated DataFrame with new columns and filtered rows
+display(df_filtered)
+
+
+
+
+
+
+# Get a distinct list of all vendor codes in the October DataFrame
+vendor_codes = df.select("Vendor_code").distinct().rdd.flatMap(lambda x: x).collect()
+
+# Loop through each vendor code and display its data
+for vendor_code in vendor_codes:
+    # Filter the combined DataFrame for the current vendor
+    df_vendor = df.filter(F.col("Vendor code") == vendor_code)
+    
+    # Display the DataFrame for the current vendor
+    print(f"Data for Vendor Code: {vendor_code}")
+    display(df_vendor)
+
+
+
+
+
+
+# Sort the DataFrame by 'stock_coverage_in_weeks_for_supplier' in ascending order and get the top 10 rows
+df_low_20_stock_coverage_for_supplier = df_filtered.orderBy(F.col("stock_coverage_in_weeks_for_supplier").asc()).limit(20)
+
+# Display the top 10 rows
+display(df_low_20_stock_coverage_for_supplier)
+
+
+
+
+from datetime import datetime
+
+# Default values for current month and year
+dbutils.widgets.text("Month", datetime.now().strftime("%B"))  # Default: current month
+dbutils.widgets.text("Year", datetime.now().strftime("%Y"))   # Default: current year
+
+# Get the values of the widgets
+month = dbutils.widgets.get("Month")
+year = dbutils.widgets.get("Year")
+
+print(f"Processing data for {month} {year}")
+
+
+
+
+
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from pandas.tseries.offsets import DateOffset
+
+# Convert the PySpark DataFrame to Pandas DataFrame for plotting
+df_pandas = df.toPandas()
+
+# Automatically infer the date format for the 'Reporting date' column
+df_pandas['Reporting_date'] = pd.to_datetime(df_pandas['Reporting_date'], errors='coerce')
+
+# Get a distinct list of all vendor codes in the DataFrame
+vendor_codes = df.select("Vendor_code").distinct().rdd.flatMap(lambda x: x).collect()
+
+# Loop through each vendor code and plot data for the top 3 parts based on stock coverage
+for vendor_code in vendor_codes:
+    # Filter the combined DataFrame for the current vendor
+    df_vendor = df_pandas[df_pandas['Vendor_code'] == vendor_code]
+    
+    # Sort by stock coverage in ascending order and select the top 3 parts for each vendor
+    df_vendor_sorted = df_vendor.sort_values('stock_coverage_in_weeks', ascending=True)
+    top_3_parts = df_vendor_sorted['QIAGEN_material_number'].unique()[:3]
+
+    # Focus on a time range (up to one year)
+    min_date = df_vendor_sorted['Reporting_date'].min()
+    max_date = min(min_date + DateOffset(years=1), df_vendor_sorted['Reporting_date'].max())
+
+    # Filter the data for the range
+    df_vendor_sorted = df_vendor_sorted[(df_vendor_sorted['Reporting_date'] >= min_date) & 
+                                        (df_vendor_sorted['Reporting_date'] <= max_date)]
+
+    # Plot the top 3 parts for the current vendor
+    plt.figure(figsize=(12, 6))
+    
+    for part_number in top_3_parts:
+        # Filter data for the current part number
+        df_part = df_vendor_sorted[df_vendor_sorted['QIAGEN_material_number'] == part_number]
+        
+        # Get the product name for the current part
+        product_name = df_part['QIAGEN_Product_name'].iloc[0] if not df_part.empty else 'Unknown Product'
+        
+        # Plot the data for this part with larger dots
+        plt.plot(df_part['Reporting_date'], df_part['stock_coverage_in_weeks'], marker='o', markersize=16, 
+                 label=f"Part: {part_number}, Product: {product_name}")
+
+        # Annotate each point with its value, positioned to the right of the dot
+        for x, y in zip(df_part['Reporting_date'], df_part['stock_coverage_in_weeks']):
+            plt.text(x + pd.Timedelta(days=20), y, f"{y:.1f}", fontsize=16, ha='left', va='center', color='blue')
+
+    # Add a horizontal line at y=12 with the label 'Recommended Stock Line'
+    plt.axhline(y=12, color='red', linestyle='--', linewidth=1.5, label='Recommended Stock Line')
+
+    # Set the labels and title
+    plt.xlabel("Reporting_Date")
+    plt.ylabel("Stock_Coverage_in_Weeks")
+    plt.title(f"Lowest 3 Parts for Vendor Code: {vendor_code} (Up to 1 Year Range)")
+    plt.legend(title="QIAGEN Material Number, Product")  # Show the legend to distinguish parts
+
+    # Format the x-axis to display dates better
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.tight_layout()
+
+    # Display the plot
+    plt.show()
+
+
+
+
+from pyspark.sql import functions as F
+from datetime import datetime
+
+# Get widgets for the current month and year
+dbutils.widgets.text("Month", datetime.now().strftime("%B"))  # Default: current month
+dbutils.widgets.text("Year", datetime.now().strftime("%Y"))   # Default: current year
+
+month = dbutils.widgets.get("Month")
+year = dbutils.widgets.get("Year")
+
+# Logic for the previous month (same year)
+previous_month_index = datetime.strptime(f"{month} {year}", "%B %Y").month - 1
+if previous_month_index == 0:
+    raise ValueError("Previous month's data cannot be calculated if current month is January.")
+
+previous_month = datetime.strptime(str(previous_month_index), "%m").strftime("%B")
+
+# Table names
+current_table_name = f"df_agg_till_{month}_{year}"
+previous_table_name = f"df_agg_till_{previous_month}_{year}"
+
+# Check if the previous month's table exists
+if not spark._jsparkSession.catalog().tableExists(previous_table_name):
+    raise KeyError(f"The table '{previous_table_name}' does not exist in the Spark catalog.")
+
+# Load the previous month's data
+df_previous = spark.table(previous_table_name)
+
+# Ensure the current month's new data (`df`) exists
+if 'df' not in globals():
+    raise KeyError("The DataFrame `df` for the current month does not exist. Ensure it is defined.")
+
+# Union the previous month's data with the current month's data
+df_aggregated = df_previous.unionByName(df)
+
+# Display the aggregated data
+display(df_aggregated)
+
+# Save the aggregated DataFrame as a table
+df_aggregated.createOrReplaceTempView(current_table_name)
+
+# Optional: Save it permanently if needed
+spark.sql(f"CREATE OR REPLACE TABLE {current_table_name} AS SELECT * FROM {current_table_name}")
+
+
+
+
+
+df_aggregated_percent = df_aggregated.withColumn(
+    "percentage_stock_at_supplier", 
+    F.round((F.col("QC_released_stock") / F.col("Recommended_Stock_level_at_Supplier")) * 100, 0)
+)
+
+display(df_aggregated_percent)
+
+
+
+
+df_aggregated_filtered = df_aggregated.filter(df_aggregated["stock_coverage_in_weeks_for_supplier"].isNotNull())
+display(df_aggregated_filtered)
+
+
+
+
+
+# Calculate the percentage of QC released stock vs. agreed target inventory level
+df_aggregated = df_aggregated.withColumn(
+    'QC_released_vs_target_percent',
+    (col('QC_released_stock') / col('Recommended_Stock_level_at_Supplier')) * 100
+)
+
+# Filter rows where the percentage is less than 30%
+df_below_30_percent = df_aggregated.filter(col('QC_released_vs_target_percent') < 30)
+
+# Group by 'QIAGEN material number' and 'Vendor code' to count occurrences below 30%
+parts_with_low_QC_stock = (
+    df_below_30_percent.groupBy('QIAGEN_material_number', 'Vendor_code', 'QIAGEN_Product_name')
+    .count()
+    .withColumnRenamed('count', 'Count_below_30_percent')
+)
+
+# Show the result
+if parts_with_low_QC_stock.count() == 0:
+    print("No parts found with QC released stock consistently below 30%.")
+else:
+    parts_with_low_QC_stock.display()
+
+
+
+
+from pyspark.sql.functions import col, current_date, date_add, last_day
+
+# Assuming `df_aggregated` contains the necessary data with a 'Reporting date' column in `yyyy-MM-dd` format
+
+# Add a column for the first day of the current month
+df_aggregated = df_aggregated.withColumn(
+    "First_day_current_month", date_add(last_day(current_date()), 1)
+)
+
+# Filter data for the current month and the last 5 months
+df_last_6_months = df_aggregated.filter(
+    col("Reporting_date") >= date_add(col("First_day_current_month"), -180)  # 180 days = approx. 6 months
+)
+
+# Calculate the percentage of QC released stock vs. agreed target inventory level
+df_last_6_months = df_last_6_months.withColumn(
+    'QC_released_vs_target_percent',
+    (col('QC_released_stock') / col('Recommended_Stock_level_at_Supplier')) * 100
+)
+
+# Filter rows where the percentage is less than 30%
+df_below_30_percent_rolling = df_last_6_months.filter(col('QC_released_vs_target_percent') < 30)
+
+# Group by 'QIAGEN material number' and 'Vendor code' to count occurrences below 30%
+parts_with_low_QC_stock_rolling = (
+    df_below_30_percent_rolling.groupBy('QIAGEN_material_number', 'Vendor_code', 'QIAGEN_Product_name')
+    .count()
+    .withColumnRenamed('count', 'Count_below_30_percent')
+)
+
+# Show the result
+if parts_with_low_QC_stock_rolling.count() == 0:
+    print("No parts found with QC released stock consistently below 30% in the last 6 months.")
+else:
+    parts_with_low_QC_stock_rolling.display()
+
+
+
+
+
+
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+
+# Convert the PySpark DataFrame to Pandas DataFrame
+parts_with_low_QC_stock_rolling_pandas = parts_with_low_QC_stock_rolling.toPandas()
+
+# Sort by 'Count_below_30_percent' in descending order and select top 10 rows
+top_10_parts = (
+    parts_with_low_QC_stock_rolling_pandas
+    .sort_values(by='Count_below_30_percent', ascending=False)
+    .head(10)
+)
+
+# Create a combined label for x-axis: 'QIAGEN material number + QIAGEN Product name'
+top_10_parts['Label'] = (
+    top_10_parts['QIAGEN_material_number'] + " - " + top_10_parts['QIAGEN_Product_name']
+)
+
+# Normalize the counts for gradient coloring
+norm = plt.Normalize(top_10_parts['Count_below_30_percent'].min(), top_10_parts['Count_below_30_percent'].max())
+
+# Generate a color gradient from yellow to red
+color_map = mcolors.LinearSegmentedColormap.from_list('custom_gradient', ['yellow', 'red'])
+colors = [color_map(norm(value)) for value in top_10_parts['Count_below_30_percent']]
+
+# Plot the bar chart
+plt.figure(figsize=(12, 8))
+bars = plt.bar(
+    top_10_parts['Label'], 
+    top_10_parts['Count_below_30_percent'], 
+    color=colors
+)
+
+# Annotate each bar with the count value
+for bar in bars:
+    plt.text(
+        bar.get_x() + bar.get_width() / 2, 
+        bar.get_height() + 0.1, 
+        str(int(bar.get_height())), 
+        ha='center', va='bottom', fontsize=10
+    )
+
+# Customize the y-axis to display whole numbers
+max_count = top_10_parts['Count_below_30_percent'].max()
+plt.yticks(range(0, max_count + 2, 1))  # Step of 1 ensures whole numbers
+
+# Customize the chart
+plt.xlabel("Part Number + Product Name", fontsize=12)
+plt.ylabel("Occurrences Below 30%", fontsize=12)
+plt.title("Most Frequent 10 Parts with QC Released Stock Below 30% of Agreed Target Inventory Level in Last 6 Months", fontsize=14)
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+# Show the plot
+plt.show()
+
+
+
+
+from pyspark.sql.functions import col, avg
+
+# Ensure 'QC_to_Recommended_Percent' column exists by calculating it
+df_aggregated_filtered = df_aggregated_filtered.withColumn(
+    "QC_to_Recommended_Percent", 
+    (col("QC_released_stock") / col("Recommended_Stock_level_at_Supplier")) * 100
+)
+
+# Calculate the 6-month average for each part
+part_avg_percent = df_aggregated_filtered.groupBy("QIAGEN_material_number").agg(
+    avg("QC_to_Recommended_Percent").alias("Avg_QC_to_Recommended_Percent")
+)
+
+# Select the top 20 parts with the lowest average QC_to_Recommended_Percent
+top_20_parts = (
+    part_avg_percent.orderBy("Avg_QC_to_Recommended_Percent")
+    .limit(20)
+    .select("QIAGEN_material_number")
+    .rdd.flatMap(lambda x: x)
+    .collect()
+)
+
+# Filter data for only the selected top 20 parts
+df_top_20_parts = df_aggregated_filtered.filter(
+    col("QIAGEN_material_number").isin(top_20_parts)
+)
+
+# Convert to Pandas for visualization
+df_top_20_parts_pd = df_top_20_parts.toPandas()
+
+# Now use the Pandas-based Matplotlib code
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Generate a distinct color palette with 20 colors
+palette = sns.color_palette("tab20", n_colors=20)
+
+# Plot the data
+plt.figure(figsize=(14, 8))
+
+# Loop through each part and plot the data
+for i, part_number in enumerate(top_20_parts):
+    df_part = df_top_20_parts_pd[df_top_20_parts_pd['QIAGEN_material_number'] == part_number]
+    
+    vendor_name = df_part['Vendor_name'].iloc[0]
+    product_name = df_part['QIAGEN_Product_name'].iloc[0]
+    avg_percent = df_part['QC_to_Recommended_Percent'].mean()
+    
+    concise_label = f"Vendor: {vendor_name}, Part: {part_number}, Name: {product_name}, Avg: {avg_percent:.2f}%"
+    
+    plt.plot(
+        df_part['Reporting_date'], 
+        df_part['QC_to_Recommended_Percent'], 
+        marker='x', 
+        color=palette[i], 
+        alpha=0.8, 
+        label=concise_label
+    )
+
+plt.xlabel("Reporting Date")
+plt.ylabel("Percent of [QC Released Stock / Recommended Stock Level]")
+plt.title("Top 20 Parts with Lowest Average Percent QC Released Stock to Recommended Stock Level\n(Last 6 Months)")
+
+plt.legend(
+    title="Vendor, Part, Product Name & Avg %", 
+    loc='upper center', 
+    bbox_to_anchor=(0.5, -0.1), 
+    fontsize='small', 
+    title_fontsize='medium', 
+    ncol=2
+)
+
+plt.xticks(rotation=48)
+plt.grid(True)
+plt.tight_layout()
+
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
